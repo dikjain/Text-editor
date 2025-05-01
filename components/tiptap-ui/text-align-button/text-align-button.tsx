@@ -91,7 +91,8 @@ export function canSetTextAlign(
   if (!editor || !alignAvailable) return false
 
   try {
-    return editor.can().setTextAlign(align)
+    // Use type assertion to avoid TypeScript error
+    return (editor.can() as any).setTextAlign?.(align) ?? false
   } catch {
     return false
   }

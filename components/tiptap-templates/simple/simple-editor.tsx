@@ -5,7 +5,6 @@ import { EditorContent, EditorContext, useEditor } from "@tiptap/react"
 
 // --- Tiptap Core Extensions ---
 import { StarterKit } from "@tiptap/starter-kit"
-import { Image } from "@tiptap/extension-image"
 import { TaskItem } from "@tiptap/extension-task-item"
 import { TaskList } from "@tiptap/extension-task-list"
 import { Typography } from "@tiptap/extension-typography"
@@ -113,42 +112,46 @@ const MainToolbarContent = ({
       .replace(/<ul>([\s\S]*?)<\/ul>/g, function(match: string, content: string) {
         return content.replace(/<li>([\s\S]*?)<\/li>/g, '- $1\n');
       })
-      // Handle ordered lists with proper nesting
-      .replace(/<ol>([\s\S]*?)<\/ol>/g, function(match: string, content: string) {
-        // Count the number of spaces before the list to determine nesting level
-        const baseIndent = (match.match(/^\s*/) || [''])[0].length;
-        let result = '';
-        let currentIndent = baseIndent;
-        let counters: number[] = [0];
-        
-        content.split('\n').forEach(line => {
-          const indent = (line.match(/^\s*/) || [''])[0].length;
-          const isListItem = line.includes('<li>');
-          
-          if (isListItem) {
-            // Adjust counters array based on indentation level
-            while (counters.length <= (indent - baseIndent) / 4) {
-              counters.push(0);
+      // Handle ordered lists with proper hierarchical numbering
+      .replace(/<ol>([\s\S]*?)<\/ol>/g, function processOl(match: string) {
+        const parseOl = (html: string, depth = 0, counters: number[] = []): string => {
+          let markdown = ''
+          let index = 1
+
+          // Process each list item
+          html.replace(/<li>([\s\S]*?)(?=<\/li>)/g, (_, liContent: string) => {
+            const numberStack = [...counters, index]
+            const prefix = numberStack.join('.') + '. '
+            let content = liContent.trim()
+
+            // Check for nested <ol>
+            const nestedOlMatch = content.match(/<ol>([\s\S]*?)<\/ol>/)
+            if (nestedOlMatch) {
+              const nestedContent = nestedOlMatch[0]
+              // Remove nested <ol> from current content
+              content = content.replace(nestedOlMatch[0], '').trim()
+              // Add current item with proper indentation
+              markdown += '    '.repeat(depth) + prefix + content + '\n'
+              // Recursively parse nested list
+              markdown += parseOl(nestedContent, depth + 1, numberStack)
+            } else {
+              // Handle any remaining nested content
+              content = content.replace(/<ul>([\s\S]*?)<\/ul>/g, (_, ulContent: string) => {
+                return ulContent.replace(/<li>([\s\S]*?)<\/li>/g, (_, liText: string) => {
+                  return '\n' + '    '.repeat(depth + 1) + '- ' + liText.trim()
+                })
+              })
+              markdown += '    '.repeat(depth) + prefix + content + '\n'
             }
-            while (counters.length > (indent - baseIndent) / 4 + 1) {
-              counters.pop();
-            }
-            
-            // Increment the counter for the current level
-            counters[counters.length - 1]++;
-            
-            // Generate the number with proper dots
-            const number = counters.join('.');
-            
-            // Replace the list item with proper indentation and number
-            result += ' '.repeat(indent) + number + '. ' + 
-              line.replace(/<li>(.*?)<\/li>/, '$1').trim() + '\n';
-          } else {
-            result += line + '\n';
-          }
-        });
-        
-        return result;
+
+            index++
+            return ''
+          })
+
+          return markdown
+        }
+
+        return parseOl(match)
       })
       // Task lists
       .replace(/<li data-type="taskItem" data-checked="true">([\s\S]*?)<\/li>/g, '- [x] $1\n')
