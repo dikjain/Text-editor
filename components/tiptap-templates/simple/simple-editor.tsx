@@ -8,7 +8,6 @@ import { StarterKit } from "@tiptap/starter-kit"
 import { Image } from "@tiptap/extension-image"
 import { TaskItem } from "@tiptap/extension-task-item"
 import { TaskList } from "@tiptap/extension-task-list"
-import { TextAlign } from "@tiptap/extension-text-align"
 import { Typography } from "@tiptap/extension-typography"
 import { Highlight } from "@tiptap/extension-highlight"
 import { Subscript } from "@tiptap/extension-subscript"
@@ -55,8 +54,8 @@ import {
   LinkButton,
 } from "@/components/tiptap-ui/link-popover"
 import { MarkButton } from "@/components/tiptap-ui/mark-button"
-import { TextAlignButton } from "@/components/tiptap-ui/text-align-button"
 import { UndoRedoButton } from "@/components/tiptap-ui/undo-redo-button"
+import { CopyIcon } from "@/components/tiptap-icons/copy-icon"
 
 // --- Icons ---
 import { ArrowLeftIcon } from "@/components/tiptap-icons/arrow-left-icon"
@@ -89,6 +88,43 @@ const MainToolbarContent = ({
 }) => {
   const { editor } = React.useContext(EditorContext)
 
+  const handleCopyMarkdown = () => {
+    if (!editor) return
+    
+    // Get the editor content as HTML
+    const html = editor.getHTML()
+    
+    // Convert HTML to Markdown
+    // This is a simple conversion, you might want to use a library like turndown for more complex cases
+    let markdown = html
+      .replace(/<h1>(.*?)<\/h1>/g, '# $1\n\n')
+      .replace(/<h2>(.*?)<\/h2>/g, '## $1\n\n')
+      .replace(/<h3>(.*?)<\/h3>/g, '### $1\n\n')
+      .replace(/<h4>(.*?)<\/h4>/g, '#### $1\n\n')
+      .replace(/<p>(.*?)<\/p>/g, '$1\n\n')
+      .replace(/<strong>(.*?)<\/strong>/g, '**$1**')
+      .replace(/<em>(.*?)<\/em>/g, '*$1*')
+      .replace(/<u>(.*?)<\/u>/g, '__$1__')
+      .replace(/<s>(.*?)<\/s>/g, '~~$1~~')
+      .replace(/<ul>([\s\S]*?)<\/ul>/g, '$1')
+      .replace(/<ol>([\s\S]*?)<\/ol>/g, '$1')
+      .replace(/<li>(.*?)<\/li>/g, '- $1\n')
+      .replace(/<blockquote>(.*?)<\/blockquote>/g, '> $1\n\n')
+      .replace(/<br>/g, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/\n{3,}/g, '\n\n')
+    
+    // Copy to clipboard
+    navigator.clipboard.writeText(markdown)
+      .then(() => {
+        // You could add a toast notification here
+        console.log('Markdown copied to clipboard')
+      })
+      .catch(err => {
+        console.error('Failed to copy markdown:', err)
+      })
+  }
+
   return (
     <>
       <Spacer />
@@ -96,6 +132,10 @@ const MainToolbarContent = ({
       <ToolbarGroup>
         <UndoRedoButton action="undo" />
         <UndoRedoButton action="redo" />
+        <Button onClick={handleCopyMarkdown}>
+          <CopyIcon className="tiptap-button-icon" />
+          Copy Markdown
+        </Button>
       </ToolbarGroup>
 
       <ToolbarSeparator />
@@ -164,16 +204,6 @@ const MainToolbarContent = ({
       </ToolbarGroup>
 
       <ToolbarSeparator />
-
-      <ToolbarGroup>
-        <TextAlignButton align="left" />
-        <TextAlignButton align="center" />
-        <TextAlignButton align="right" />
-        <TextAlignButton align="justify" />
-      </ToolbarGroup>
-
-      <ToolbarSeparator />
-
 
       <Spacer />
 
@@ -300,7 +330,6 @@ export function SimpleEditor() {
         keepAttributes: false,
       }),
       ListItem,
-      TextAlign.configure({ types: ["heading", "paragraph"] }),
       Underline,
       TaskList,
       TaskItem.configure({ nested: true }),
