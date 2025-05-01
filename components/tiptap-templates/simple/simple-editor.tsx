@@ -55,7 +55,6 @@ import {
 } from "@/components/tiptap-ui/link-popover"
 import { MarkButton } from "@/components/tiptap-ui/mark-button"
 import { UndoRedoButton } from "@/components/tiptap-ui/undo-redo-button"
-import { CopyIcon } from "@/components/tiptap-icons/copy-icon"
 
 // --- Icons ---
 import { ArrowLeftIcon } from "@/components/tiptap-icons/arrow-left-icon"
@@ -69,9 +68,7 @@ import { useWindowSize } from "@/hooks/use-window-size"
 // --- Components ---
 import { ThemeToggle } from "@/components/tiptap-templates/simple/theme-toggle"
 
-// --- Lib ---
-import { handleImageUpload, MAX_FILE_SIZE } from "@/lib/tiptap-utils"
-
+// --- Lib -
 // --- Styles ---
 import "@/components/tiptap-templates/simple/simple-editor.scss"
 
@@ -95,30 +92,89 @@ const MainToolbarContent = ({
     const html = editor.getHTML()
     
     // Convert HTML to Markdown
-    // This is a simple conversion, you might want to use a library like turndown for more complex cases
+    // This is a more comprehensive conversion to properly handle markdown formatting
     let markdown = html
+      // Headings
       .replace(/<h1>(.*?)<\/h1>/g, '# $1\n\n')
       .replace(/<h2>(.*?)<\/h2>/g, '## $1\n\n')
       .replace(/<h3>(.*?)<\/h3>/g, '### $1\n\n')
       .replace(/<h4>(.*?)<\/h4>/g, '#### $1\n\n')
+      // Paragraphs
       .replace(/<p>(.*?)<\/p>/g, '$1\n\n')
+      // Text formatting
       .replace(/<strong>(.*?)<\/strong>/g, '**$1**')
       .replace(/<em>(.*?)<\/em>/g, '*$1*')
       .replace(/<u>(.*?)<\/u>/g, '__$1__')
       .replace(/<s>(.*?)<\/s>/g, '~~$1~~')
-      .replace(/<ul>([\s\S]*?)<\/ul>/g, '$1')
-      .replace(/<ol>([\s\S]*?)<\/ol>/g, '$1')
-      .replace(/<li>(.*?)<\/li>/g, '- $1\n')
-      .replace(/<blockquote>(.*?)<\/blockquote>/g, '> $1\n\n')
-      .replace(/<br>/g, '\n')
+      // Code blocks
+      .replace(/<pre><code>([\s\S]*?)<\/code><\/pre>/g, '```\n$1\n```\n\n')
+      .replace(/<code>(.*?)<\/code>/g, '`$1`')
+      // Lists - handle nested lists better
+      .replace(/<ul>([\s\S]*?)<\/ul>/g, function(match: string, content: string) {
+        return content.replace(/<li>([\s\S]*?)<\/li>/g, '- $1\n');
+      })
+      // Handle ordered lists with proper nesting
+      .replace(/<ol>([\s\S]*?)<\/ol>/g, function(match: string, content: string) {
+        // Count the number of spaces before the list to determine nesting level
+        const baseIndent = (match.match(/^\s*/) || [''])[0].length;
+        let result = '';
+        let currentIndent = baseIndent;
+        let counters: number[] = [0];
+        
+        content.split('\n').forEach(line => {
+          const indent = (line.match(/^\s*/) || [''])[0].length;
+          const isListItem = line.includes('<li>');
+          
+          if (isListItem) {
+            // Adjust counters array based on indentation level
+            while (counters.length <= (indent - baseIndent) / 4) {
+              counters.push(0);
+            }
+            while (counters.length > (indent - baseIndent) / 4 + 1) {
+              counters.pop();
+            }
+            
+            // Increment the counter for the current level
+            counters[counters.length - 1]++;
+            
+            // Generate the number with proper dots
+            const number = counters.join('.');
+            
+            // Replace the list item with proper indentation and number
+            result += ' '.repeat(indent) + number + '. ' + 
+              line.replace(/<li>(.*?)<\/li>/, '$1').trim() + '\n';
+          } else {
+            result += line + '\n';
+          }
+        });
+        
+        return result;
+      })
+      // Task lists
+      .replace(/<li data-type="taskItem" data-checked="true">([\s\S]*?)<\/li>/g, '- [x] $1\n')
+      .replace(/<li data-type="taskItem" data-checked="false">([\s\S]*?)<\/li>/g, '- [ ] $1\n')
+      // Blockquotes
+      .replace(/<blockquote>([\s\S]*?)<\/blockquote>/g, function(match: string, content: string) {
+        return content.split('\n').map((line: string) => `> ${line}`).join('\n') + '\n\n';
+      })
+      // Links
+      .replace(/<a href="(.*?)">(.*?)<\/a>/g, '[$2]($1)')
+      // Images
+      .replace(/<img src="(.*?)" alt="(.*?)".*?>/g, '![$2]($1)')
+      // Line breaks
+      .replace(/<br\s*\/?>/g, '\n')
+      // Clean up any remaining HTML tags
       .replace(/<[^>]+>/g, '')
+      // Clean up excessive newlines
       .replace(/\n{3,}/g, '\n\n')
+      // Trim whitespace
+      .trim()
     
     // Copy to clipboard
     navigator.clipboard.writeText(markdown)
       .then(() => {
-        // You could add a toast notification here
         console.log('Markdown copied to clipboard')
+        // You could add a toast notification here
       })
       .catch(err => {
         console.error('Failed to copy markdown:', err)
@@ -133,7 +189,10 @@ const MainToolbarContent = ({
         <UndoRedoButton action="undo" />
         <UndoRedoButton action="redo" />
         <Button onClick={handleCopyMarkdown}>
-          <CopyIcon className="tiptap-button-icon" />
+          <svg className="tiptap-button-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M16 4H18C18.5304 4 19.0391 4.21071 19.4142 4.58579C19.7893 4.96086 20 5.46957 20 6V20C20 20.5304 19.7893 21.0391 19.4142 21.4142C19.0391 21.7893 18.5304 22 18 22H6C5.46957 22 4.96086 21.7893 4.58579 21.4142C4.21071 21.0391 4 20.5304 4 20V6C4 5.46957 4.21071 4.96086 4.58579 4.58579C4.96086 4.21071 5.46957 4 6 4H8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M15 2H9C8.44772 2 8 2.44772 8 3V5C8 5.55228 8.44772 6 9 6H15C15.5523 6 16 5.55228 16 5V3C16 2.44772 15.5523 2 15 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
           Copy Markdown
         </Button>
       </ToolbarGroup>

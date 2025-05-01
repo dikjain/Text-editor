@@ -52,14 +52,16 @@
   ol {
     counter-reset: item;
     list-style: none;
+    padding-left: 0;
 
     li {
       display: block;
       position: relative;
       padding-left: 2.5em;
+      margin-left: 0;
 
       &::before {
-        content: counters(item, ".") ")";
+        content: counters(item, ".") ".";
         counter-increment: item;
         position: absolute;
         left: 0;
@@ -68,18 +70,21 @@
       }
 
       ol {
-        counter-reset: item;
-        padding-left: 1.5em;
-      }
-
-      // Limit nesting to 3 levels
-      ol ol ol {
-        padding-left: 1.5em;
-      }
-
-      // Hide any deeper nesting
-      ol ol ol ol {
-        display: none;
+        margin-left: 1.5em;
+        padding-left: 0;
+        
+        li {
+          padding-left: 2.5em;
+          
+          ol {
+            margin-left: 1.5em;
+            padding-left: 0;
+            
+            li {
+              padding-left: 2.5em;
+            }
+          }
+        }
       }
     }
   }
