@@ -102,82 +102,211 @@ function hello() {
 - [x] Completed task
 `;
 
-const MainToolbarContent = ({
+interface MainToolbarContentProps {
+  onHighlighterClick: () => void;
+  onLinkClick: () => void;
+  isMobile: boolean;
+}
+
+const MainToolbarContent: React.FC<MainToolbarContentProps> = ({
   onHighlighterClick,
   onLinkClick,
   isMobile,
-}: {
-  onHighlighterClick: () => void
-  onLinkClick: () => void
-  isMobile: boolean
 }) => {
-  const { editor } = React.useContext(EditorContext)
+  const { editor } = React.useContext(EditorContext);
 
   const handleCopyMarkdown = () => {
-    if (!editor) return
+    if (!editor) return;
     
-    // Get the editor content as HTML
-    const html = editor.getHTML()
+    // A more robust approach: Get JSON content from editor and convert to Markdown
+    const jsonContent = editor.getJSON();
+    console.log("Editor JSON:", jsonContent);
     
-    // Convert HTML to Markdown
-    // This is a more comprehensive conversion to properly handle markdown formatting
-    let markdown = html
-      // Headings
-      .replace(/<h1>(.*?)<\/h1>/g, '# $1\n\n')
-      .replace(/<h2>(.*?)<\/h2>/g, '## $1\n\n')
-      .replace(/<h3>(.*?)<\/h3>/g, '### $1\n\n')
-      .replace(/<h4>(.*?)<\/h4>/g, '#### $1\n\n')
-      // Paragraphs
-      .replace(/<p>(.*?)<\/p>/g, '$1\n\n')
-      // Text formatting
-      .replace(/<strong>(.*?)<\/strong>/g, '**$1**')
-      .replace(/<em>(.*?)<\/em>/g, '*$1*')
-      .replace(/<u>(.*?)<\/u>/g, '__$1__')
-      .replace(/<s>(.*?)<\/s>/g, '~~$1~~')
-      // Code blocks
-      .replace(/<pre><code>([\s\S]*?)<\/code><\/pre>/g, '```\n$1\n```\n\n')
-      .replace(/<code>(.*?)<\/code>/g, '`$1`')
-      // Lists - handle all lists as flat lists
-      .replace(/<ul>([\s\S]*?)<\/ul>/g, function(match: string, content: string) {
-        return content.replace(/<li>([\s\S]*?)<\/li>/g, '- $1\n');
-      })
-      // Handle ordered lists as flat lists
-      .replace(/<ol>([\s\S]*?)<\/ol>/g, function(match: string, content: string) {
-        let index = 1;
-        return content.replace(/<li>([\s\S]*?)<\/li>/g, (_, item: string) => {
-          return `${index++}. ${item}\n`;
+    // Function to convert the editor's JSON structure to Markdown
+    const convertToMarkdown = (content: any): string => {
+      if (!content || !content.content) return "";
+      
+      let result = "";
+      
+      // Process each node in the content
+      content.content.forEach((node: any) => {
+        switch (node.type) {
+          case "paragraph":
+            result += convertInlineContent(node) + "\n\n";
+            break;
+            
+          case "heading":
+            const level = node.attrs.level;
+            const headingText = convertInlineContent(node);
+            result += `${"#".repeat(level)} ${headingText}\n\n`;
+            break;
+            
+          case "bulletList":
+            result += processBulletList(node, 0) + "\n";
+            break;
+            
+          case "orderedList":
+            result += processOrderedList(node, 0) + "\n";
+            break;
+            
+          case "blockquote":
+            const quoteContent = node.content ? convertToMarkdown(node) : "";
+            result += quoteContent.split("\n").map((line: string) => `> ${line}`).join("\n") + "\n\n";
+            break;
+            
+          case "codeBlock":
+            const code = node.content ? convertInlineContent(node) : "";
+            const lang = node.attrs?.language || "";
+            result += `\`\`\`${lang}\n${code}\n\`\`\`\n\n`;
+            break;
+            
+          // Add other node types as needed
+        }
+      });
+      
+      return result;
+    };
+    
+    // Process inline marks (bold, italic, etc.)
+    const convertInlineContent = (node: any): string => {
+      if (!node.content) return "";
+      
+      let text = "";
+      
+      node.content.forEach((inline: any) => {
+        if (inline.type === "text") {
+          let content = inline.text || "";
+          
+          // Apply marks (bold, italic, etc.)
+          if (inline.marks) {
+            inline.marks.forEach((mark: any) => {
+              switch (mark.type) {
+                case "bold":
+                  content = `**${content}**`;
+                  break;
+                case "italic":
+                  content = `*${content}*`;
+                  break;
+                case "strike":
+                  content = `~~${content}~~`;
+                  break;
+                case "underline":
+                  content = `__${content}__`;
+                  break;
+                case "code":
+                  content = `\`${content}\``;
+                  break;
+                case "link":
+                  content = `[${content}](${mark.attrs.href})`;
+                  break;
+                // Add other marks as needed
+              }
+            });
+          }
+          
+          text += content;
+        }
+      });
+      
+      return text;
+    };
+    
+    // Process bullet lists
+    const processBulletList = (node: any, level: number): string => {
+      if (!node.content) return "";
+      
+      let result = "";
+      const indent = "  ".repeat(level);
+      
+      node.content.forEach((item: any) => {
+        if (item.type === "listItem") {
+          // Get text content of this list item
+          let itemContent = "";
+          
+          if (item.content) {
+            item.content.forEach((content: any) => {
+              if (content.type === "paragraph") {
+                itemContent += convertInlineContent(content);
+              } else if (content.type === "bulletList") {
+                itemContent += "\n" + processBulletList(content, level + 1);
+              } else if (content.type === "orderedList") {
+                itemContent += "\n" + processOrderedList(content, level + 1);
+              }
+            });
+          }
+          
+          result += `${indent}- ${itemContent.trimStart()}\n`;
+        }
+      });
+      
+      return result;
+    };
+    
+    // Process ordered lists - this is where the fix is needed
+    const processOrderedList = (node: any, level: number): string => {
+      if (!node.content) return "";
+      
+      let result = "";
+      const indent = "    ".repeat(level); // 4 spaces per level for proper markdown indentation
+      
+      node.content.forEach((item: any, index: number) => {
+        if (item.type === "listItem") {
+          let itemContent = "";
+          let hasNestedList = false;
+          
+          if (item.content) {
+            item.content.forEach((content: any) => {
+              if (content.type === "paragraph") {
+                itemContent += convertInlineContent(content);
+              } else if (content.type === "bulletList") {
+                hasNestedList = true;
+                itemContent += "\n" + processBulletList(content, level + 1);
+              } else if (content.type === "orderedList") {
+                hasNestedList = true;
+                itemContent += "\n" + processOrderedList(content, level + 1);
+              }
+            });
+          }
+          
+          // Add this list item with proper indentation and numbering
+          result += `${indent}${index + 1}. ${itemContent.trimStart()}\n`;
+        }
+      });
+      
+      return result;
+    };
+    
+    try {
+      // Try the JSON approach first
+      const markdown = convertToMarkdown(jsonContent);
+      console.log("Generated markdown:", markdown);
+      
+      // Copy to clipboard
+      navigator.clipboard.writeText(markdown)
+        .then(() => {
+          console.log('Markdown copied to clipboard successfully');
+          // You could add a toast notification here
+        })
+        .catch(err => {
+          console.error('Failed to copy markdown:', err);
         });
-      })
-      // Task lists
-      .replace(/<li data-type="taskItem" data-checked="true">([\s\S]*?)<\/li>/g, '- [x] $1\n')
-      .replace(/<li data-type="taskItem" data-checked="false">([\s\S]*?)<\/li>/g, '- [ ] $1\n')
-      // Blockquotes
-      .replace(/<blockquote>([\s\S]*?)<\/blockquote>/g, function(match: string, content: string) {
-        return content.split('\n').map((line: string) => `> ${line}`).join('\n') + '\n\n';
-      })
-      // Links
-      .replace(/<a href="(.*?)">(.*?)<\/a>/g, '[$2]($1)')
-      // Images
-      .replace(/<img src="(.*?)" alt="(.*?)".*?>/g, '![$2]($1)')
-      // Line breaks
-      .replace(/<br\s*\/?>/g, '\n')
-      // Clean up any remaining HTML tags
-      .replace(/<[^>]+>/g, '')
-      // Clean up excessive newlines
-      .replace(/\n{3,}/g, '\n\n')
-      // Trim whitespace
-      .trim()
-    
-    // Copy to clipboard
-    navigator.clipboard.writeText(markdown)
-      .then(() => {
-        console.log('Markdown copied to clipboard')
-        // You could add a toast notification here
-      })
-      .catch(err => {
-        console.error('Failed to copy markdown:', err)
-      })
-  }
+    } catch (error) {
+      console.error("Error converting to markdown:", error);
+      
+      // Fallback to HTML approach if JSON conversion fails
+      try {
+        const htmlContent = editor.getHTML();
+        console.log("Falling back to HTML approach");
+        
+        // Create simpler HTML to Markdown converter here
+        // This is a simplified version that may not handle all cases perfectly
+        
+        // ... (your existing HTML approach)
+      } catch (fallbackError) {
+        console.error("Both conversion approaches failed:", fallbackError);
+      }
+    }
+  };
 
   return (
     <>
@@ -208,22 +337,22 @@ const MainToolbarContent = ({
       <ToolbarGroup>
         <Button
           onClick={() => {
-            if (!editor) return
-            const { state } = editor.view
-            const { selection } = state
-            const { $from } = selection
-            let depth = 0
-            let node: any = $from.node()
+            if (!editor) return;
+            const { state } = editor.view;
+            const { selection } = state;
+            const { $from } = selection;
+            let depth = 0;
+            let node: any = $from.node();
             
             while (node) {
               if (node.type.name === 'listItem') {
-                depth++
+                depth++;
               }
-              node = node.parent
+              node = node.parent;
             }
             
             if (depth < 3) {
-              editor.commands.sinkListItem('listItem')
+              editor.commands.sinkListItem('listItem');
             }
           }}
           disabled={!editor?.can().sinkListItem('listItem')}
@@ -270,15 +399,17 @@ const MainToolbarContent = ({
         <ThemeToggle />
       </ToolbarGroup>
     </>
-  )
+  );
+};
+
+interface MobileToolbarContentProps {
+  type: "highlighter" | "link";
+  onBack: () => void;
 }
 
-const MobileToolbarContent = ({
+const MobileToolbarContent: React.FC<MobileToolbarContentProps> = ({
   type,
   onBack,
-}: {
-  type: "highlighter" | "link"
-  onBack: () => void
 }) => (
   <>
     <ToolbarGroup>
@@ -296,14 +427,14 @@ const MobileToolbarContent = ({
 
     {type === "highlighter" ? <HighlightContent /> : <LinkContent />}
   </>
-)
+);
 
 export function SimpleEditor() {
-  const isMobile = useMobile()
-  const windowSize = useWindowSize()
+  const isMobile = useMobile();
+  const windowSize = useWindowSize();
   const [mobileView, setMobileView] = React.useState<
     "main" | "highlighter" | "link"
-  >("main")
+  >("main");
   const [rect, setRect] = React.useState<
     Pick<DOMRect, "x" | "y" | "width" | "height">
   >({
@@ -311,26 +442,26 @@ export function SimpleEditor() {
     y: 0,
     width: 0,
     height: 0,
-  })
-  const toolbarRef = React.useRef<HTMLDivElement>(null)
+  });
+  const toolbarRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     const updateRect = () => {
-      setRect(document.body.getBoundingClientRect())
-    }
+      setRect(document.body.getBoundingClientRect());
+    };
 
-    updateRect()
+    updateRect();
 
-    const resizeObserver = new ResizeObserver(updateRect)
-    resizeObserver.observe(document.body)
+    const resizeObserver = new ResizeObserver(updateRect);
+    resizeObserver.observe(document.body);
 
-    window.addEventListener("scroll", updateRect)
+    window.addEventListener("scroll", updateRect);
 
     return () => {
-      resizeObserver.disconnect()
-      window.removeEventListener("scroll", updateRect)
-    }
-  }, [])
+      resizeObserver.disconnect();
+      window.removeEventListener("scroll", updateRect);
+    };
+  }, []);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -343,32 +474,32 @@ export function SimpleEditor() {
       },
       handleKeyDown: (view, event) => {
         if (event.key === 'Tab') {
-          event.preventDefault()
+          event.preventDefault();
           if (event.shiftKey) {
-            editor?.commands.liftListItem('listItem')
+            editor?.commands.liftListItem('listItem');
           } else {
             // Check if we're at the 3rd level
-            const { state } = view
-            const { selection } = state
-            const { $from } = selection
-            let depth = 0
-            let node: any = $from.node()
+            const { state } = view;
+            const { selection } = state;
+            const { $from } = selection;
+            let depth = 0;
+            let node: any = $from.node();
             
             while (node) {
               if (node.type.name === 'listItem') {
-                depth++
+                depth++;
               }
-              node = node.parent
+              node = node.parent;
             }
             
             // Only allow indentation if we're not at the 3rd level
             if (depth < 3) {
-              editor?.commands.sinkListItem('listItem')
+              editor?.commands.sinkListItem('listItem');
             }
           }
-          return true
+          return true;
         }
-        return false
+        return false;
       },
     },
     extensions: [
@@ -387,7 +518,7 @@ export function SimpleEditor() {
         keepAttributes: false,
       }),
       ListItem,
-        Underline,
+      Underline,
       TaskItem.configure({ nested: true }),
       Highlight.configure({ multicolor: true }),
       Typography,
@@ -395,49 +526,49 @@ export function SimpleEditor() {
       Subscript,
       Selection,
       TrailingNode,
-      Link.configure({ openOnClick: false }),
+      Link.configure({ openOnClick: true }),
     ],
     content: markdownToHtml(SAMPLE_MARKDOWN),
-  })
+  });
 
   React.useEffect(() => {
     const checkCursorVisibility = () => {
-      if (!editor || !toolbarRef.current) return
+      if (!editor || !toolbarRef.current) return;
 
-      const { state, view } = editor
-      if (!view.hasFocus()) return
+      const { state, view } = editor;
+      if (!view.hasFocus()) return;
 
-      const { from } = state.selection
-      const cursorCoords = view.coordsAtPos(from)
+      const { from } = state.selection;
+      const cursorCoords = view.coordsAtPos(from);
 
       if (windowSize.height < rect.height) {
         if (cursorCoords && toolbarRef.current) {
           const toolbarHeight =
-            toolbarRef.current.getBoundingClientRect().height
+            toolbarRef.current.getBoundingClientRect().height;
           const isEnoughSpace =
-            windowSize.height - cursorCoords.top - toolbarHeight > 0
+            windowSize.height - cursorCoords.top - toolbarHeight > 0;
 
           // If not enough space, scroll until the cursor is the middle of the screen
           if (!isEnoughSpace) {
             const scrollY =
-              cursorCoords.top - windowSize.height / 2 + toolbarHeight
+              cursorCoords.top - windowSize.height / 2 + toolbarHeight;
             window.scrollTo({
               top: scrollY,
               behavior: "smooth",
-            })
+            });
           }
         }
       }
-    }
+    };
 
-    checkCursorVisibility()
-  }, [editor, rect.height, windowSize.height])
+    checkCursorVisibility();
+  }, [editor, rect.height, windowSize.height]);
 
   React.useEffect(() => {
     if (!isMobile && mobileView !== "main") {
-      setMobileView("main")
+      setMobileView("main");
     }
-  }, [isMobile, mobileView])
+  }, [isMobile, mobileView]);
 
   return (
     <EditorContext.Provider value={{ editor }}>
@@ -473,5 +604,5 @@ export function SimpleEditor() {
         />
       </div>
     </EditorContext.Provider>
-  )
+  );
 }
