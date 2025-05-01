@@ -56,17 +56,30 @@
     li {
       display: block;
       position: relative;
-      padding-left: 1.5em;
+      padding-left: 2.5em;
 
       &::before {
-        content: counters(item, ".") ".)";
+        content: counters(item, ".") ")";
         counter-increment: item;
         position: absolute;
         left: 0;
+        width: 2em;
+        text-align: right;
       }
 
       ol {
         counter-reset: item;
+        padding-left: 1.5em;
+      }
+
+      // Limit nesting to 3 levels
+      ol ol ol {
+        padding-left: 1.5em;
+      }
+
+      // Hide any deeper nesting
+      ol ol ol ol {
+        display: none;
       }
     }
   }

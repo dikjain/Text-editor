@@ -110,7 +110,25 @@ const MainToolbarContent = ({
 
       <ToolbarGroup>
         <Button
-          onClick={() => editor?.commands.sinkListItem('listItem')}
+          onClick={() => {
+            if (!editor) return
+            const { state } = editor.view
+            const { selection } = state
+            const { $from } = selection
+            let depth = 0
+            let node: any = $from.node()
+            
+            while (node) {
+              if (node.type.name === 'listItem') {
+                depth++
+              }
+              node = node.parent
+            }
+            
+            if (depth < 3) {
+              editor.commands.sinkListItem('listItem')
+            }
+          }}
           disabled={!editor?.can().sinkListItem('listItem')}
         >
           Indent
@@ -242,7 +260,24 @@ export function SimpleEditor() {
           if (event.shiftKey) {
             editor?.commands.liftListItem('listItem')
           } else {
-            editor?.commands.sinkListItem('listItem')
+            // Check if we're at the 3rd level
+            const { state } = view
+            const { selection } = state
+            const { $from } = selection
+            let depth = 0
+            let node: any = $from.node()
+            
+            while (node) {
+              if (node.type.name === 'listItem') {
+                depth++
+              }
+              node = node.parent
+            }
+            
+            // Only allow indentation if we're not at the 3rd level
+            if (depth < 3) {
+              editor?.commands.sinkListItem('listItem')
+            }
           }
           return true
         }
