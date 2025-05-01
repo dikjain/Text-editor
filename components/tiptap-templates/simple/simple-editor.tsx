@@ -6,7 +6,6 @@ import { EditorContent, EditorContext, useEditor } from "@tiptap/react"
 // --- Tiptap Core Extensions ---
 import { StarterKit } from "@tiptap/starter-kit"
 import { TaskItem } from "@tiptap/extension-task-item"
-import { TaskList } from "@tiptap/extension-task-list"
 import { Typography } from "@tiptap/extension-typography"
 import { Highlight } from "@tiptap/extension-highlight"
 import { Subscript } from "@tiptap/extension-subscript"
@@ -71,7 +70,37 @@ import { ThemeToggle } from "@/components/tiptap-templates/simple/theme-toggle"
 // --- Styles ---
 import "@/components/tiptap-templates/simple/simple-editor.scss"
 
-import content from "@/components/tiptap-templates/simple/data/content.json"
+import { markdownToHtml } from "@/app/utils/markdownToHtml"
+
+
+// Sample markdown data for testing
+const SAMPLE_MARKDOWN = `
+# Welcome to the Editor, Userology
+
+This is a **simple** editor with _markdown_ support.
+
+## Features
+
+- Rich text editing
+- Markdown support
+- Task lists
+
+### Code Example
+
+\`\`\`javascript
+function hello() {
+  console.log("Hello world!");
+}
+\`\`\`
+
+> This is a blockquote that can be used for important notes.
+
+1. First ordered item
+2. Second ordered item
+
+- [ ] Task to complete
+- [x] Completed task
+`;
 
 const MainToolbarContent = ({
   onHighlighterClick,
@@ -108,50 +137,16 @@ const MainToolbarContent = ({
       // Code blocks
       .replace(/<pre><code>([\s\S]*?)<\/code><\/pre>/g, '```\n$1\n```\n\n')
       .replace(/<code>(.*?)<\/code>/g, '`$1`')
-      // Lists - handle nested lists better
+      // Lists - handle all lists as flat lists
       .replace(/<ul>([\s\S]*?)<\/ul>/g, function(match: string, content: string) {
         return content.replace(/<li>([\s\S]*?)<\/li>/g, '- $1\n');
       })
-      // Handle ordered lists with proper hierarchical numbering
-      .replace(/<ol>([\s\S]*?)<\/ol>/g, function processOl(match: string) {
-        const parseOl = (html: string, depth = 0, counters: number[] = []): string => {
-          let markdown = ''
-          let index = 1
-
-          // Process each list item
-          html.replace(/<li>([\s\S]*?)(?=<\/li>)/g, (_, liContent: string) => {
-            const numberStack = [...counters, index]
-            const prefix = numberStack.join('.') + '. '
-            let content = liContent.trim()
-
-            // Check for nested <ol>
-            const nestedOlMatch = content.match(/<ol>([\s\S]*?)<\/ol>/)
-            if (nestedOlMatch) {
-              const nestedContent = nestedOlMatch[0]
-              // Remove nested <ol> from current content
-              content = content.replace(nestedOlMatch[0], '').trim()
-              // Add current item with proper indentation
-              markdown += '    '.repeat(depth) + prefix + content + '\n'
-              // Recursively parse nested list
-              markdown += parseOl(nestedContent, depth + 1, numberStack)
-            } else {
-              // Handle any remaining nested content
-              content = content.replace(/<ul>([\s\S]*?)<\/ul>/g, (_, ulContent: string) => {
-                return ulContent.replace(/<li>([\s\S]*?)<\/li>/g, (_, liText: string) => {
-                  return '\n' + '    '.repeat(depth + 1) + '- ' + liText.trim()
-                })
-              })
-              markdown += '    '.repeat(depth) + prefix + content + '\n'
-            }
-
-            index++
-            return ''
-          })
-
-          return markdown
-        }
-
-        return parseOl(match)
+      // Handle ordered lists as flat lists
+      .replace(/<ol>([\s\S]*?)<\/ol>/g, function(match: string, content: string) {
+        let index = 1;
+        return content.replace(/<li>([\s\S]*?)<\/li>/g, (_, item: string) => {
+          return `${index++}. ${item}\n`;
+        });
       })
       // Task lists
       .replace(/<li data-type="taskItem" data-checked="true">([\s\S]*?)<\/li>/g, '- [x] $1\n')
@@ -204,7 +199,7 @@ const MainToolbarContent = ({
 
       <ToolbarGroup>
         <HeadingDropdownMenu levels={[1, 2, 3, 4]} />
-        <ListDropdownMenu types={["bulletList", "orderedList", "taskList"]} />
+        <ListDropdownMenu types={["bulletList", "orderedList"]} />
         <NodeButton type="blockquote" />
       </ToolbarGroup>
 
@@ -392,8 +387,7 @@ export function SimpleEditor() {
         keepAttributes: false,
       }),
       ListItem,
-      Underline,
-      TaskList,
+        Underline,
       TaskItem.configure({ nested: true }),
       Highlight.configure({ multicolor: true }),
       Typography,
@@ -403,7 +397,7 @@ export function SimpleEditor() {
       TrailingNode,
       Link.configure({ openOnClick: false }),
     ],
-    content: content,
+    content: markdownToHtml(SAMPLE_MARKDOWN),
   })
 
   React.useEffect(() => {
