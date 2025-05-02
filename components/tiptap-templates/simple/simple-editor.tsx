@@ -22,7 +22,7 @@ import { TrailingNode } from "@/components/tiptap-extension/trailing-node-extens
 
 // --- Components ---
 import { Toolbar } from "@/components/tiptap-ui-primitive/toolbar"
-import { MainToolbarContent, MobileToolbarContent } from "./toolbar-content"
+import { MainToolbarContent, MobileToolbarContent, CopyOnlyToolbar } from "./toolbar-content"
 
 // --- Hooks ---
 import { useMobile } from "@/hooks/use-mobile"
@@ -74,7 +74,7 @@ interface SimpleEditorProps {
   readOnly?: boolean;
 }
 
-export function SimpleEditor({ readOnly = false }: SimpleEditorProps) {
+export function SimpleEditor({ readOnly = true }: SimpleEditorProps) {
   const isMobile = useMobile();
   const windowSize = useWindowSize();
   const [mobileView, setMobileView] = React.useState<"main" | "highlighter" | "link">("main");
@@ -220,7 +220,7 @@ export function SimpleEditor({ readOnly = false }: SimpleEditorProps) {
 
   return (
     <EditorContext.Provider value={{ editor }}>
-      {!readOnly && (
+      {!readOnly ? (
         <Toolbar
           ref={toolbarRef}
           style={
@@ -244,6 +244,8 @@ export function SimpleEditor({ readOnly = false }: SimpleEditorProps) {
             />
           )}
         </Toolbar>
+      ) : (
+        <CopyOnlyToolbar />
       )}
 
       <div className="content-wrapper">
