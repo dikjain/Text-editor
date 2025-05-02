@@ -106,32 +106,10 @@ export const MainToolbarContent: React.FC<MainToolbarContentProps> = ({
       <ToolbarSeparator />
 
       <ToolbarGroup>
-        <Button
-          onClick={handleIndent}
-          disabled={!editor?.can().sinkListItem('listItem')}
-        >
-          Indent
-        </Button>
-        <Button
-          onClick={() => editor?.commands.liftListItem('listItem')}
-          disabled={!editor?.can().liftListItem('listItem')}
-        >
-          Outdent
-        </Button>
-      </ToolbarGroup>
-
-      <ToolbarSeparator />
-
-      <ToolbarGroup>
         <MarkButton type="bold" />
         <MarkButton type="italic" />
         <MarkButton type="strike" />
         <MarkButton type="underline" />
-        {!isMobile ? (
-          <HighlightPopover />
-        ) : (
-          <HighlighterButton onClick={onHighlighterClick} />
-        )}
         {!isMobile ? <LinkPopover /> : <LinkButton onClick={onLinkClick} />}
       </ToolbarGroup>
 

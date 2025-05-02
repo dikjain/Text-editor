@@ -40,7 +40,7 @@ import "@/components/tiptap-templates/simple/simple-editor.scss"
 import { useEffect } from "react"
 
 // Sample markdown data for testing
-const SAMPLE_MARKDOWN = `
+let SAMPLE_MARKDOWN = `
 # Welcome to the Editor, Userology
 
 This is a **simple** editor with _markdown_ support.
@@ -70,7 +70,11 @@ function hello() {
 - [x] Completed task
 `;
 
-export function SimpleEditor() {
+interface SimpleEditorProps {
+  readOnly?: boolean;
+}
+
+export function SimpleEditor({ readOnly = false }: SimpleEditorProps) {
   const isMobile = useMobile();
   const windowSize = useWindowSize();
   const [mobileView, setMobileView] = React.useState<"main" | "highlighter" | "link">("main");
@@ -84,6 +88,7 @@ export function SimpleEditor() {
 
   const editor = useEditor({
     immediatelyRender: false,
+    editable: !readOnly,
     editorProps: {
       attributes: {
         autocomplete: "off",
@@ -215,29 +220,31 @@ export function SimpleEditor() {
 
   return (
     <EditorContext.Provider value={{ editor }}>
-      <Toolbar
-        ref={toolbarRef}
-        style={
-          isMobile
-            ? {
-                bottom: `calc(100% - ${windowSize.height - rect.y}px)`,
-              }
-            : {}
-        }
-      >
-        {mobileView === "main" ? (
-          <MainToolbarContent
-            onHighlighterClick={() => setMobileView("highlighter")}
-            onLinkClick={() => setMobileView("link")}
-            isMobile={isMobile}
-          />
-        ) : (
-          <MobileToolbarContent
-            type={mobileView === "highlighter" ? "highlighter" : "link"}
-            onBack={() => setMobileView("main")}
-          />
-        )}
-      </Toolbar>
+      {!readOnly && (
+        <Toolbar
+          ref={toolbarRef}
+          style={
+            isMobile
+              ? {
+                  bottom: `calc(100% - ${windowSize.height - rect.y}px)`,
+                }
+              : {}
+          }
+        >
+          {mobileView === "main" ? (
+            <MainToolbarContent
+              onHighlighterClick={() => setMobileView("highlighter")}
+              onLinkClick={() => setMobileView("link")}
+              isMobile={isMobile}
+            />
+          ) : (
+            <MobileToolbarContent
+              type={mobileView === "highlighter" ? "highlighter" : "link"}
+              onBack={() => setMobileView("main")}
+            />
+          )}
+        </Toolbar>
+      )}
 
       <div className="content-wrapper">
         <EditorContent
