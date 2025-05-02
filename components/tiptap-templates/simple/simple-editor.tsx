@@ -30,7 +30,6 @@ import {
 } from "@/components/tiptap-ui-primitive/toolbar"
 
 // --- Tiptap Node ---
-import { ImageUploadNode } from "@/components/tiptap-node/image-upload-node/image-upload-node-extension"
 import "@/components/tiptap-node/code-block-node/code-block-node.scss"
 import "@/components/tiptap-node/list-node/list-node.scss"
 import "@/components/tiptap-node/image-node/image-node.scss"
@@ -96,6 +95,8 @@ function hello() {
 > This is a blockquote that can be used for important notes.
 
 1. First ordered item
+    1. Nested item
+        1. Deep nested item
 2. Second ordered item
 
 - [ ] Task to complete
@@ -242,33 +243,29 @@ const MainToolbarContent: React.FC<MainToolbarContentProps> = ({
       return result;
     };
     
-    // Process ordered lists - this is where the fix is needed
+    // Process ordered lists with consistent 4-space indentation
     const processOrderedList = (node: any, level: number): string => {
       if (!node.content) return "";
       
       let result = "";
-      const indent = "    ".repeat(level); // 4 spaces per level for proper markdown indentation
+      const indent = "    ".repeat(level); // 4 spaces per level
       
       node.content.forEach((item: any, index: number) => {
         if (item.type === "listItem") {
           let itemContent = "";
-          let hasNestedList = false;
           
           if (item.content) {
             item.content.forEach((content: any) => {
               if (content.type === "paragraph") {
                 itemContent += convertInlineContent(content);
-              } else if (content.type === "bulletList") {
-                hasNestedList = true;
-                itemContent += "\n" + processBulletList(content, level + 1);
               } else if (content.type === "orderedList") {
-                hasNestedList = true;
                 itemContent += "\n" + processOrderedList(content, level + 1);
+              } else if (content.type === "bulletList") {
+                itemContent += "\n" + processBulletList(content, level + 1);
               }
             });
           }
           
-          // Add this list item with proper indentation and numbering
           result += `${indent}${index + 1}. ${itemContent.trimStart()}\n`;
         }
       });
@@ -501,6 +498,16 @@ export function SimpleEditor() {
         }
         return false;
       },
+      handlePaste: (view, event) => {
+        const text = event.clipboardData?.getData('text/plain');
+        if (text) {
+          event.preventDefault();
+          const htmlContent = markdownToHtml(text);
+          editor?.commands.insertContent(htmlContent);
+          return true;
+        }
+        return false;
+      }
     },
     extensions: [
       StarterKit.configure({
