@@ -533,7 +533,13 @@ export function SimpleEditor() {
       Subscript,
       Selection,
       TrailingNode,
-      Link.configure({ openOnClick: true }),
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: {
+          target: '_blank',
+          rel: 'noopener noreferrer',
+        }
+      }),
     ],
     content: markdownToHtml(SAMPLE_MARKDOWN),
   });
