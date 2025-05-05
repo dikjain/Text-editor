@@ -39,8 +39,7 @@ import "@/components/tiptap-node/paragraph-node/paragraph-node.scss"
 import "@/components/tiptap-templates/simple/simple-editor.scss"
 import { useEffect } from "react"
 
-// Sample markdown data for testing
-let SAMPLE_MARKDOWN = `
+const sampleMarkdownContent = `
 # Welcome to the Editor, Userology
 
 This is a **simple** editor with _markdown_ support.
@@ -70,11 +69,14 @@ function hello() {
 - [x] Completed task
 `;
 
+
+
 interface SimpleEditorProps {
   readOnly?: boolean;
+  text?: string;
 }
 
-export function SimpleEditor({ readOnly = true }: SimpleEditorProps) {
+export function SimpleEditor({ readOnly = false , text = sampleMarkdownContent }: SimpleEditorProps) {
   const isMobile = useMobile();
   const windowSize = useWindowSize();
   const [mobileView, setMobileView] = React.useState<"main" | "highlighter" | "link">("main");
@@ -84,6 +86,8 @@ export function SimpleEditor({ readOnly = true }: SimpleEditorProps) {
     width: 0,
     height: 0,
   });
+  const [sampleMarkdown, setSampleMarkdown] = React.useState(text);
+  
   const toolbarRef = React.useRef<HTMLDivElement>(null);
 
   const editor = useEditor({
@@ -166,8 +170,12 @@ export function SimpleEditor({ readOnly = true }: SimpleEditorProps) {
         }
       }),
     ],
-    content: markdownToHtml(SAMPLE_MARKDOWN),
+    content: markdownToHtml(text),
   });
+
+  useEffect(() => {
+      editor?.commands.setContent(markdownToHtml(text));
+  }, [editor, text]);
 
   useEffect(() => {
     const updateRect = () => {
