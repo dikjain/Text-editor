@@ -87,12 +87,13 @@ export function SimpleEditor({ readOnly = false , text = sampleMarkdownContent }
     height: 0,
   });
   const [sampleMarkdown, setSampleMarkdown] = React.useState(text);
+  const [isReadOnly, setIsReadOnly] = React.useState(readOnly);
   
   const toolbarRef = React.useRef<HTMLDivElement>(null);
 
   const editor = useEditor({
     immediatelyRender: false,
-    editable: !readOnly,
+    editable: !isReadOnly,
     editorProps: {
       attributes: {
         autocomplete: "off",
@@ -178,6 +179,12 @@ export function SimpleEditor({ readOnly = false , text = sampleMarkdownContent }
   }, [editor, text]);
 
   useEffect(() => {
+    if (editor) {
+      editor.setEditable(!isReadOnly);
+    }
+  }, [editor, isReadOnly]);
+
+  useEffect(() => {
     const updateRect = () => {
       setRect(document.body.getBoundingClientRect());
     };
@@ -228,7 +235,18 @@ export function SimpleEditor({ readOnly = false , text = sampleMarkdownContent }
 
   return (
     <EditorContext.Provider value={{ editor }}>
-      {!readOnly ? (
+      <div className="editor-controls">
+        <label className="read-only-toggle">
+          <input
+            type="checkbox"
+            checked={isReadOnly}
+            onChange={() => setIsReadOnly(!isReadOnly)}
+          />
+          Read Only
+        </label>
+      </div>
+      
+      {!isReadOnly ? (
         <Toolbar
           ref={toolbarRef}
           style={
