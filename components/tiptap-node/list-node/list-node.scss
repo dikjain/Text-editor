@@ -57,7 +57,7 @@
     li {
       display: block;
       position: relative;
-      padding-left: 2.5em;
+      padding-left: 2em;
       margin-left: 0;
 
       &::before {
@@ -65,23 +65,23 @@
         counter-increment: item;
         position: absolute;
         left: 0;
-        width: 2em;
+        width: 1.5em;
         text-align: right;
       }
 
       ol {
-        margin-left: 1.5em;
+        margin-left: 0;
         padding-left: 0;
         
         li {
-          padding-left: 2.5em;
+          padding-left: 2em;
           
           ol {
-            margin-left: 1.5em;
+            margin-left: 0;
             padding-left: 0;
             
             li {
-              padding-left: 2.5em;
+              padding-left: 2em;
             }
           }
         }
@@ -91,13 +91,30 @@
 
   // Unordered lists
   ul:not([data-type="taskList"]) {
-    list-style: disc;
+    list-style: none;
+    padding-left: 0;
 
-    ul {
-      list-style: circle;
+    li {
+      position: relative;
+      padding-left: 2em;
+
+      &::before {
+        content: "\2022";
+        position: absolute;
+        left: -0.5em;
+        width: 1.5em;
+        text-align: right;
+        font-size: 1.4em;
+        line-height: 1;
+      }
 
       ul {
-        list-style: disc;
+        list-style: none;
+        padding-left: 0;
+        
+        li {
+          padding-left: 2em;
+        }
       }
     }
   }

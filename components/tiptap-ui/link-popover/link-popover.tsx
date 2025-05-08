@@ -80,6 +80,9 @@ export const useLinkHandler = (props: LinkHandlerProps) => {
 
     const { from, to } = editor.state.selection
     const text = editor.state.doc.textBetween(from, to)
+    
+    // Normalize URL to include https:// if not present
+    const normalizedUrl = /^https?:\/\//i.test(url) ? url : `https://${url}`
 
     editor
       .chain()
@@ -88,7 +91,7 @@ export const useLinkHandler = (props: LinkHandlerProps) => {
       .insertContent({
         type: "text",
         text: text || url,
-        marks: [{ type: "link", attrs: { href: url } }],
+        marks: [{ type: "link", attrs: { href: normalizedUrl } }],
       })
       .run()
 
@@ -192,7 +195,11 @@ const LinkMain: React.FC<LinkMainProps> = ({
       <div className="tiptap-button-group" data-orientation="horizontal">
         <Button
           type="button"
-          onClick={() => window.open(url, "_blank")}
+          onClick={() => {
+            // Normalize URL before opening
+            const normalizedUrl = /^https?:\/\//i.test(url) ? url : `https://${url}`
+            window.open(normalizedUrl, "_blank")
+          }}
           title="Open in new window"
           disabled={!url && !isActive}
           data-style="ghost"

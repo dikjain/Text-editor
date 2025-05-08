@@ -7,16 +7,15 @@ import { EditorContent, EditorContext, useEditor } from "@tiptap/react"
 import { StarterKit } from "@tiptap/starter-kit"
 import { TaskItem } from "@tiptap/extension-task-item"
 import { Typography } from "@tiptap/extension-typography"
-import { Highlight } from "@tiptap/extension-highlight"
-import { Subscript } from "@tiptap/extension-subscript"
-import { Superscript } from "@tiptap/extension-superscript"
 import { Underline } from "@tiptap/extension-underline"
 import { BulletList } from "@tiptap/extension-bullet-list"
 import { OrderedList } from "@tiptap/extension-ordered-list"
 import { ListItem } from "@tiptap/extension-list-item"
+import { Strike } from '@tiptap/extension-strike'
+import { TextSelection } from 'prosemirror-state'
 
 // --- Custom Extensions ---
-import { Link } from "@/components/tiptap-extension/link-extension"
+import { isValidDomain, Link } from "@/components/tiptap-extension/link-extension"
 import { Selection } from "@/components/tiptap-extension/selection-extension"
 import { TrailingNode } from "@/components/tiptap-extension/trailing-node-extension"
 
@@ -30,6 +29,7 @@ import { useWindowSize } from "@/hooks/use-window-size"
 
 // --- Utils ---
 import { markdownToHtml } from "@/app/utils/markdownToHtml"
+import { normalizeHref } from "@/components/tiptap-extension/link-extension"
 
 // --- Styles ---
 import "@/components/tiptap-node/code-block-node/code-block-node.scss"
@@ -126,6 +126,37 @@ export function SimpleEditor({ readOnly = false , text = sampleMarkdownContent }
           }
           return true;
         }
+
+        // Handle Enter and Shift+Enter for text formatting
+        if (event.key === 'Enter') {
+          const { state } = view;
+          const { selection } = state;
+          const { $from } = selection;
+          const marks = $from.marks();
+
+          // If Shift+Enter, keep the formatting
+          if (event.shiftKey) {
+            return false;
+          }
+
+          // If Enter and there are marks, create a new line without formatting
+          if (marks.length > 0) {
+            event.preventDefault();
+            
+            // Create a new paragraph node
+            const { tr } = view.state;
+            const pos = selection.from;
+            
+            // Insert a new line and remove marks
+            tr.insert(pos, view.state.schema.nodes.paragraph.create())
+              .setStoredMarks([])
+              .setSelection(TextSelection.create(tr.doc, pos + 1));
+            
+            view.dispatch(tr);
+            return true;
+          }
+        }
+
         return false;
       },
       handlePaste: (view, event) => {
@@ -144,6 +175,14 @@ export function SimpleEditor({ readOnly = false , text = sampleMarkdownContent }
         bulletList: false,
         orderedList: false,
         listItem: false,
+        strike: false,
+      }),
+      Strike.extend({
+        addKeyboardShortcuts() {
+          return {
+            'Alt-Shift-5': () => this.editor.commands.toggleStrike(),
+          }
+        },
       }),
       BulletList,
       OrderedList.configure({
@@ -157,10 +196,7 @@ export function SimpleEditor({ readOnly = false , text = sampleMarkdownContent }
       ListItem,
       Underline,
       TaskItem.configure({ nested: true }),
-      Highlight.configure({ multicolor: true }),
       Typography,
-      Superscript,
-      Subscript,
       Selection,
       TrailingNode,
       Link.configure({
@@ -168,7 +204,7 @@ export function SimpleEditor({ readOnly = false , text = sampleMarkdownContent }
         HTMLAttributes: {
           target: '_blank',
           rel: 'noopener noreferrer',
-        }
+        },
       }),
     ],
     content: markdownToHtml(text),
@@ -232,6 +268,27 @@ export function SimpleEditor({ readOnly = false , text = sampleMarkdownContent }
       setMobileView("main");
     }
   }, [isMobile, mobileView]);
+
+  useEffect(() => {
+    const handleLinkClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'A' || target.tagName === 'a' || target.tagName === 'button' || target.tagName === 'span' || target.classList.contains('tiptap-button')) {
+        const href = (target as HTMLAnchorElement).getAttribute('href');
+        if (href) {
+          e.preventDefault();
+          const normalized = /^https?:\/\//i.test(href) ? href : `https://${href}`;
+          window.open(normalized, '_blank', 'noopener,noreferrer');
+        }
+      }
+    };
+
+    const editorContent = document.querySelector('.simple-editor-content');
+    editorContent?.addEventListener('click', handleLinkClick as EventListener);
+
+    return () => {
+      editorContent?.removeEventListener('click', handleLinkClick as EventListener);
+    };
+  }, []);
 
   return (
     <EditorContext.Provider value={{ editor }}>
