@@ -30,6 +30,7 @@ import { useWindowSize } from "@/hooks/use-window-size"
 // --- Utils ---
 import { markdownToHtml } from "@/app/utils/markdownToHtml"
 import { normalizeHref } from "@/components/tiptap-extension/link-extension"
+import { convertToMarkdown } from "@/utils/markdownConverter"
 
 // --- Styles ---
 import "@/components/tiptap-node/code-block-node/code-block-node.scss"
@@ -289,6 +290,36 @@ export function SimpleEditor({ readOnly = false , text = sampleMarkdownContent }
       editorContent?.removeEventListener('click', handleLinkClick as EventListener);
     };
   }, []);
+
+  useEffect(() => {
+    const handleCopy = (event: ClipboardEvent) => {
+      if (!editor) return;
+      const selection = window.getSelection();
+      if (!selection || !editor.isFocused) return;
+      event.preventDefault();
+      try {
+        const { from, to } = editor.state.selection;
+        let markdown = '';
+        if (from !== to) {
+          // Always wrap the selected content in a doc node
+          const selectedContent = editor.state.doc.slice(from, to).content.toJSON();
+          markdown = convertToMarkdown({ type: 'doc', content: selectedContent });
+        } else {
+          const jsonContent = editor.getJSON();
+          markdown = convertToMarkdown(jsonContent);
+        }
+        event.clipboardData?.setData('text/plain', markdown);
+        event.clipboardData?.setData('text/markdown', markdown);
+      } catch (error) {
+        // fallback: let default copy happen
+      }
+    };
+    const editorContent = document.querySelector('.simple-editor-content');
+    editorContent?.addEventListener('copy', handleCopy as EventListener);
+    return () => {
+      editorContent?.removeEventListener('copy', handleCopy as EventListener);
+    };
+  }, [editor]);
 
   return (
     <EditorContext.Provider value={{ editor }}>

@@ -51,25 +51,30 @@ const processBulletList = (node: MarkContent, level: number): string => {
   if (!node.content) return "";
   
   let result = "";
-  const indent = "  ".repeat(level);
+  const indent = "   ".repeat(level);
   
   node.content.forEach((item: MarkContent) => {
     if (item.type === "listItem") {
       let itemContent = "";
+      let nestedList = "";
       
       if (item.content) {
         item.content.forEach((content: MarkContent) => {
           if (content.type === "paragraph") {
             itemContent += convertInlineContent(content);
           } else if (content.type === "bulletList") {
-            itemContent += "\n" + processBulletList(content, level + 1);
+            nestedList += processBulletList(content, level + 1);
           } else if (content.type === "orderedList") {
-            itemContent += "\n" + processOrderedList(content, level + 1);
+            nestedList += processOrderedList(content, level + 1);
           }
         });
       }
       
-      result += `${indent}- ${itemContent.trimStart()}\n`;
+      result += `${indent}- ${itemContent.trimStart()}`;
+      if (nestedList) {
+        result += `\n${nestedList}`;
+      }
+      result += "\n";
     }
   });
   
@@ -82,23 +87,30 @@ const processOrderedList = (node: MarkContent, level: number): string => {
   let result = "";
   const indent = "    ".repeat(level);
   
-  node.content.forEach((item: MarkContent, index: number) => {
+  let itemNumber = 1;
+  node.content.forEach((item: MarkContent) => {
     if (item.type === "listItem") {
       let itemContent = "";
+      let nestedList = "";
       
       if (item.content) {
         item.content.forEach((content: MarkContent) => {
           if (content.type === "paragraph") {
             itemContent += convertInlineContent(content);
           } else if (content.type === "orderedList") {
-            itemContent += "\n" + processOrderedList(content, level + 1);
+            nestedList += processOrderedList(content, level + 1);
           } else if (content.type === "bulletList") {
-            itemContent += "\n" + processBulletList(content, level + 1);
+            nestedList += processBulletList(content, level + 1);
           }
         });
       }
       
-      result += `${indent}${index + 1}. ${itemContent.trimStart()}\n`;
+      result += `${indent}${itemNumber}. ${itemContent.trimStart()}`;
+      if (nestedList) {
+        result += `\n${nestedList}`;
+      }
+      result += "\n";
+      itemNumber++;
     }
   });
   
