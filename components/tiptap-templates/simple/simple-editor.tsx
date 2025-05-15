@@ -295,7 +295,7 @@ export function SimpleEditor({ readOnly = false , text = sampleMarkdownContent }
     const handleCopy = (event: ClipboardEvent) => {
       if (!editor) return;
       const selection = window.getSelection();
-      if (!selection || !editor.isFocused) return;
+      if (!selection) return;
       event.preventDefault();
       try {
         const { from, to } = editor.state.selection;
@@ -314,10 +314,10 @@ export function SimpleEditor({ readOnly = false , text = sampleMarkdownContent }
         // fallback: let default copy happen
       }
     };
-    const editorContent = document.querySelector('.simple-editor-content');
-    editorContent?.addEventListener('copy', handleCopy as EventListener);
+
+    document.addEventListener('copy', handleCopy as EventListener);
     return () => {
-      editorContent?.removeEventListener('copy', handleCopy as EventListener);
+      document.removeEventListener('copy', handleCopy as EventListener);
     };
   }, [editor]);
 
